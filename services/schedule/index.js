@@ -6,34 +6,40 @@ const isBetween = require('dayjs/plugin/isBetween');
 
 dayjs.extend(isBetween);
 
-// date (Date) e.g. 2019-11-15
-const getMonth = (date) => {
-  return dayjs(date).format('MMMM');
-}
-
-// scheduleJson (json)
-// date (Date)
-const getGamesForMonth = (scheduleJson, date) => {
-  const month = getMonth(date);
-  const result = scheduleJson.lscd.find(monthlyScheduleJson => {
-    return monthlyScheduleJson.mscd.mon === month;
-  })
-  return result.mscd.g;
+const getAllGamesByDate = (scheduleJson) => {
+  const allGamesArray = scheduleJson.lscd.reduce((acc, monthlySchedule) => {
+    return acc.concat(monthlySchedule.mscd.g);
+  }, []);
+  const result = allGamesArray.reduce((acc, game) => {
+    const gameDate = game.gdte;
+    if (!acc[gameDate]) {
+      acc[gameDate] = [];
+    }
+    acc[gameDate].push(game);
+    return acc;
+  }, {});
+  return result;
 };
 
+
 // startOfWeekDate (Date)
-const getGamesForWeek = (startOfWeekDate) => {
-  const gamesForMonth = getGamesForMonth(scheduleJson, startOfWeekDate);
+const getGamesForWeek = (allGamesByDate, startOfWeekDate) => {
+  // const gamesForMonth = getGamesForMonth(scheduleJson, startOfWeekDate);
 
   const startOfWeekDateDayJs = dayjs(startOfWeekDate);
   const endOfWeekDateDayJs = startOfWeekDateDayJs.add(1, 'week');
 
-  const gamesForWeek = gamesForMonth.filter(game => {
-    const gameDateString = game.gdte // format: 2019-11-01
+  // const gamesForWeek = gamesForMonth.filter(game => {
+  const gamesForWeek = Object.keys(allGamesByDate).reduce((acc, key) => {
+    const gameDateString = key // format: 2019-11-01
     const gameDateDayJs = dayjs(gameDateString);
-    const result = gameDateDayJs.isBetween(startOfWeekDateDayJs, endOfWeekDateDayJs);
-    return result;
-  })
+    const isGameInWeek = gameDateDayJs.isBetween(startOfWeekDateDayJs, endOfWeekDateDayJs);
+    if (isGameInWeek) {
+      acc = acc.concat(allGamesByDate[key]);
+    }
+    return acc;
+  }, []);
+
   return gamesForWeek;
 }
 
@@ -64,10 +70,14 @@ const getNumGamesPerTeam = (gamesForWeek) => {
 // startOfWeek (string) e.g. 2019-11-15
 const getData = (startOfWeekString) => {
   const startOfWeekDate = new Date(startOfWeekString);
-  const gamesForWeek = getGamesForWeek(startOfWeekDate);
+  const allGamesByDate = getAllGamesByDate(scheduleJson);
+  const gamesForWeek = getGamesForWeek(allGamesByDate, startOfWeekDate);
   const numGamesPerTeam = getNumGamesPerTeam(gamesForWeek);
   return numGamesPerTeam;
 }
+
+const data = getData('2019-11-30');
+console.log('data is', data);
 
 module.exports = async function (fastify, opts) {
   fastify.get('/schedule', async function (request, reply) {
