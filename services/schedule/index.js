@@ -76,8 +76,8 @@ const getData = (startOfWeekString) => {
   return numGamesPerTeam;
 }
 
-const data = getData('2019-11-30');
-console.log('data is', data);
+console.log('hell0!');
+console.log('process.env', process.env);
 
 module.exports = async function (fastify, opts) {
   fastify.get('/schedule', async function (request, reply) {
